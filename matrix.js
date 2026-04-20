@@ -119,13 +119,15 @@
       };
     }
 
-    // Two overlapping squares:
-    //   Square A (axis-aligned): verts at 0°, 90°, 180°, 270° → indices 0,2,4,6
-    //   Square B (rotated 45°): verts at 45°, 135°, 225°, 315° → indices 1,3,5,7
-    // 4 sides each → 8 straight segments.
+    // Layered 8-point geometry on the same 8 vertices:
+    //   Square A (axis-aligned): indices 0,2,4,6 connected in order.
+    //   Square B (rotated 45°):  indices 1,3,5,7 connected in order.
+    //   {8/3} pointy star:       each vertex connects to the one 3 steps away.
+    // 16 straight segments total, all sharing the octagram's vertices and centre.
     var pairs = [
       [0, 2], [2, 4], [4, 6], [6, 0],
       [1, 3], [3, 5], [5, 7], [7, 1],
+      [0, 3], [3, 6], [6, 1], [1, 4], [4, 7], [7, 2], [2, 5], [5, 0],
     ];
     geometry.segments = new Array(pairs.length);
     for (var k = 0; k < pairs.length; k++) {
