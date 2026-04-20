@@ -1,14 +1,14 @@
 /*
- * Matrix-style rain backdrop + sacred-geometry overlay.
+ * Matrix-style rain backdrop + rub-al-hizb-style sacred-geometry overlay.
  *
- * An octagram ({8/3} — 8 vertices connected skip-3) sits behind the rain
- * with its centre positioned off the top-right of the viewport, so only
- * one corner of the star peeks into the frame. The star is drawn as a
- * faint persistent outline; crossings by matrix characters heat up a
- * short sub-section of the nearest segment and briefly reveal that part
- * of the pattern more brightly. Heat decays ~halving per 2 seconds, so
- * recently crossed bits linger before returning to the faint base. No
- * wider glow — the effect lives on the line itself.
+ * The geometry is two overlapping squares — one axis-aligned, one rotated
+ * 45° — enclosed by a single large circle. Centre is positioned off the
+ * top-right of the viewport so only one corner of the composition is
+ * visible. The geometry renders invisible by default; only where a
+ * matrix character has recently passed over a line does that tiny stretch
+ * (or arc slice) light up. Heat decays over ~2s so the streak lingers
+ * before fading back to nothing. The characters feel like they are
+ * painting the pattern in as they cross it.
  *
  * Timeline: 2s intro → 1s decay → 25s ambient → 4s fade to zero → stop.
  * Theme-aware palette. Disabled by prefers-reduced-motion.
@@ -58,18 +58,25 @@
   var fadeMs = 4000;
   var totalMs = introMs + decayMs + ambientMs + fadeMs;
 
-  // Sub-segment granularity: each segment is split into ~5px steps so
-  // heat resolves locally to roughly a character's width on crossing.
+  // Sub-granularity ~5px; decay half-life ~2s; localised highlight.
   var SUB_PX = 5;
-  // Decay multiplier per frame. 0.99 ≈ half-life of 2 seconds at 60fps.
   var HEAT_DECAY = 0.99;
-  // How far a character centre can be from a segment and still count.
   var HIT_RADIUS = 20;
-  // How many sub-indices on each side of the crossing get heated.
   var HEAT_SPREAD = 2;
 
+  // Circle discretisation — one heat slot per ~2° of arc gives smooth
+  // highlighting as characters graze the ring.
+  var CIRCLE_SLOTS = 180;
+  // Spread in slot-count for a circle crossing, tuned so the lit arc
+  // matches the size of the lit straight-line stretch.
+  var CIRCLE_SPREAD = 2;
+
   var drops = [];
-  var octagram = { cx: 0, cy: 0, r: 0, segments: [] };
+  var geometry = {
+    cx: 0, cy: 0, r: 0, circleR: 0,
+    segments: [],
+    circle: null,
+  };
 
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
   var dims = { w: 0, h: 0 };
@@ -89,36 +96,57 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.font = '500 ' + (cellSize - 4) + 'px "JetBrains Mono", ui-monospace, monospace';
     ctx.textBaseline = 'top';
-    setupOctagram();
+    setupGeometry();
     seedDrops();
   }
 
-  function setupOctagram() {
-    octagram.cx = dims.w * 1.02;
-    octagram.cy = -dims.h * 0.08;
-    octagram.r = Math.max(dims.w, dims.h) * 0.68;
+  function setupGeometry() {
+    // Centre offscreen top-right so only one corner of the
+    // rub-al-hizb-style composition sits inside the viewport.
+    geometry.cx = dims.w * 1.04;
+    geometry.cy = -dims.h * 0.10;
+    geometry.r = Math.max(dims.w, dims.h) * 0.70;
+    geometry.circleR = geometry.r * 1.08;
 
+    // 8 vertices around the centre at 45° intervals.
     var verts = new Array(8);
     for (var i = 0; i < 8; i++) {
       var theta = (i * Math.PI) / 4;
       verts[i] = {
-        x: octagram.cx + Math.cos(theta) * octagram.r,
-        y: octagram.cy + Math.sin(theta) * octagram.r,
+        x: geometry.cx + Math.cos(theta) * geometry.r,
+        y: geometry.cy + Math.sin(theta) * geometry.r,
       };
     }
-    octagram.segments = new Array(8);
-    for (var k = 0; k < 8; k++) {
-      var a = verts[k];
-      var b = verts[(k + 3) % 8];
+
+    // Two overlapping squares:
+    //   Square A (axis-aligned): verts at 0°, 90°, 180°, 270° → indices 0,2,4,6
+    //   Square B (rotated 45°): verts at 45°, 135°, 225°, 315° → indices 1,3,5,7
+    // 4 sides each → 8 straight segments.
+    var pairs = [
+      [0, 2], [2, 4], [4, 6], [6, 0],
+      [1, 3], [3, 5], [5, 7], [7, 1],
+    ];
+    geometry.segments = new Array(pairs.length);
+    for (var k = 0; k < pairs.length; k++) {
+      var a = verts[pairs[k][0]];
+      var b = verts[pairs[k][1]];
       var len = Math.hypot(b.x - a.x, b.y - a.y);
       var N = Math.max(8, Math.ceil(len / SUB_PX));
-      octagram.segments[k] = {
+      geometry.segments[k] = {
         x1: a.x, y1: a.y, x2: b.x, y2: b.y,
-        length: len,
-        N: N,
+        length: len, N: N,
         heats: new Float32Array(N),
       };
     }
+
+    // Enclosing circle — heat stored in angle-indexed slots.
+    geometry.circle = {
+      cx: geometry.cx,
+      cy: geometry.cy,
+      r: geometry.circleR,
+      N: CIRCLE_SLOTS,
+      heats: new Float32Array(CIRCLE_SLOTS),
+    };
   }
 
   function seedDrops() {
@@ -148,14 +176,13 @@
     return { dist: Math.hypot(px - cx, py - cy), t: t };
   }
 
-  function bumpHeat(seg, t, intensity) {
+  function bumpSegmentHeat(seg, t, intensity) {
     var center = Math.floor(t * seg.N);
     if (center < 0) center = 0;
     if (center >= seg.N) center = seg.N - 1;
     for (var k = center - HEAT_SPREAD; k <= center + HEAT_SPREAD; k++) {
       if (k < 0 || k >= seg.N) continue;
       var d = Math.abs(k - center);
-      // Triangular falloff: full at centre, 0 at (spread+1).
       var falloff = 1 - d / (HEAT_SPREAD + 1);
       var add = intensity * falloff;
       if (add <= 0) continue;
@@ -164,39 +191,62 @@
     }
   }
 
-  function drawOctagram(layerAlpha) {
+  function bumpCircleHeat(circle, angle01, intensity) {
+    var center = Math.floor(angle01 * circle.N);
+    // Angle is modular — wrap around the array.
+    var N = circle.N;
+    for (var k = -CIRCLE_SPREAD; k <= CIRCLE_SPREAD; k++) {
+      var idx = ((center + k) % N + N) % N;
+      var d = Math.abs(k);
+      var falloff = 1 - d / (CIRCLE_SPREAD + 1);
+      var add = intensity * falloff;
+      if (add <= 0) continue;
+      var next = circle.heats[idx] + add;
+      circle.heats[idx] = next > 1 ? 1 : next;
+    }
+  }
+
+  function drawGeometry(layerAlpha) {
     ctx.lineCap = 'round';
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'rgba(' + palette.line + ',1)';
 
-    for (var si = 0; si < octagram.segments.length; si++) {
-      var seg = octagram.segments[si];
-
-      // Very faint persistent base so the pattern is present but the
-      // reveal on crossing does the work visually.
-      ctx.globalAlpha = 0.025 * layerAlpha;
-      ctx.beginPath();
-      ctx.moveTo(seg.x1, seg.y1);
-      ctx.lineTo(seg.x2, seg.y2);
-      ctx.stroke();
-
-      // Overlay short sub-segments for heated regions only.
+    // Straight segments — only draw lit sub-segments. No persistent line.
+    for (var si = 0; si < geometry.segments.length; si++) {
+      var seg = geometry.segments[si];
       var invN = 1 / seg.N;
       var dx = seg.x2 - seg.x1;
       var dy = seg.y2 - seg.y1;
       for (var i = 0; i < seg.N; i++) {
         var h = seg.heats[i];
         if (h > 0.004) {
-          var t0 = i * invN;
-          var t1 = (i + 1) * invN;
-          ctx.globalAlpha = h * 0.7 * layerAlpha;
+          var a = i * invN;
+          var b = (i + 1) * invN;
+          ctx.globalAlpha = h * 0.75 * layerAlpha;
           ctx.beginPath();
-          ctx.moveTo(seg.x1 + dx * t0, seg.y1 + dy * t0);
-          ctx.lineTo(seg.x1 + dx * t1, seg.y1 + dy * t1);
+          ctx.moveTo(seg.x1 + dx * a, seg.y1 + dy * a);
+          ctx.lineTo(seg.x1 + dx * b, seg.y1 + dy * b);
           ctx.stroke();
         }
         seg.heats[i] *= HEAT_DECAY;
       }
+    }
+
+    // Circle — only draw lit arc slots.
+    var c = geometry.circle;
+    var step = (Math.PI * 2) / c.N;
+    var base = -Math.PI; // atan2 range starts at -π
+    for (var j = 0; j < c.N; j++) {
+      var hc = c.heats[j];
+      if (hc > 0.004) {
+        var a0 = base + j * step;
+        var a1 = base + (j + 1) * step;
+        ctx.globalAlpha = hc * 0.75 * layerAlpha;
+        ctx.beginPath();
+        ctx.arc(c.cx, c.cy, c.r, a0, a1);
+        ctx.stroke();
+      }
+      c.heats[j] *= HEAT_DECAY;
     }
   }
 
@@ -238,7 +288,7 @@
     ctx.fillStyle = 'rgba(' + palette.bg + ',' + trailAlpha + ')';
     ctx.fillRect(0, 0, dims.w, dims.h);
 
-    drawOctagram(layerAlpha);
+    drawGeometry(layerAlpha);
 
     ctx.globalAlpha = dropAlpha;
     var active = Math.max(1, Math.floor(drops.length * densityScale));
@@ -252,12 +302,23 @@
 
       var gx = d.x + cellSize / 2;
       var gy = d.y + cellSize / 2;
-      for (var si = 0; si < octagram.segments.length; si++) {
-        var seg = octagram.segments[si];
+
+      // Straight-segment crossings.
+      for (var si = 0; si < geometry.segments.length; si++) {
+        var seg = geometry.segments[si];
         var r = distToSeg(gx, gy, seg);
-        if (r.dist < HIT_RADIUS) {
-          bumpHeat(seg, r.t, 0.7);
-        }
+        if (r.dist < HIT_RADIUS) bumpSegmentHeat(seg, r.t, 0.7);
+      }
+
+      // Circle crossings: distance to ring = |dist-from-centre − radius|.
+      var c = geometry.circle;
+      var dxc = gx - c.cx;
+      var dyc = gy - c.cy;
+      var radial = Math.hypot(dxc, dyc);
+      if (Math.abs(radial - c.r) < HIT_RADIUS) {
+        var angle = Math.atan2(dyc, dxc);       // (-π, π]
+        var angle01 = (angle + Math.PI) / (Math.PI * 2);
+        bumpCircleHeat(c, angle01, 0.7);
       }
 
       d.y += d.speed;
