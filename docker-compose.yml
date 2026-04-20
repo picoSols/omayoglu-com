@@ -1,8 +1,7 @@
 services:
   web:
-    image: nginx:alpine
+    build: .
+    image: omayoglu-com:latest
     restart: unless-stopped
     ports:
       - "8090:80"
-    volumes:
-      - ./:/usr/share/nginx/html:ro
