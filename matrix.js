@@ -3,18 +3,15 @@
  *
  * An octagram ({8/3} — 8 vertices connected skip-3) sits behind the rain
  * with its centre positioned off the top-right of the viewport, so only
- * one corner of the star peeks into the frame. The octagram renders at a
- * very faint persistent tint; when a falling matrix character passes
- * near one of its segments, that segment's "heat" bumps to full and
- * decays slowly over several seconds, leaving a temporary bright streak
- * where the rain touched the geometry. Each crossing also spawns a
- * short-lived radial glow centred on the contact point — an AOE bloom.
+ * one corner of the star peeks into the frame. The star is drawn as a
+ * faint persistent outline; crossings by matrix characters heat up a
+ * short sub-section of the nearest segment and briefly reveal that part
+ * of the pattern more brightly. Heat decays ~halving per 2 seconds, so
+ * recently crossed bits linger before returning to the faint base. No
+ * wider glow — the effect lives on the line itself.
  *
  * Timeline: 2s intro → 1s decay → 25s ambient → 4s fade to zero → stop.
- *
- * Palette swaps live on theme change (data-theme attribute on <html>
- * and prefers-color-scheme media query). pointer-events: none on the
- * host, aria-hidden, prefers-reduced-motion disables the whole effect.
+ * Theme-aware palette. Disabled by prefers-reduced-motion.
  */
 (function () {
   'use strict';
@@ -61,17 +58,17 @@
   var fadeMs = 4000;
   var totalMs = introMs + decayMs + ambientMs + fadeMs;
 
-  // Per-frame decay multiplier for octagram segment heat. 0.985^60 ≈ 0.4,
-  // so heat halves roughly every second — a crossing leaves a trail that
-  // stays perceptible for several seconds before fading.
-  var HEAT_DECAY = 0.985;
-  // Pixel radius around each segment where a matrix character counts as
-  // "crossing". Slightly larger than cellSize/2 so glyphs that graze the
-  // segment still register.
-  var HIT_RADIUS = 22;
+  // Sub-segment granularity: each segment is split into ~5px steps so
+  // heat resolves locally to roughly a character's width on crossing.
+  var SUB_PX = 5;
+  // Decay multiplier per frame. 0.99 ≈ half-life of 2 seconds at 60fps.
+  var HEAT_DECAY = 0.99;
+  // How far a character centre can be from a segment and still count.
+  var HIT_RADIUS = 20;
+  // How many sub-indices on each side of the crossing get heated.
+  var HEAT_SPREAD = 2;
 
   var drops = [];
-  var glows = [];
   var octagram = { cx: 0, cy: 0, r: 0, segments: [] };
 
   var dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -80,7 +77,6 @@
   var finished = false;
   var rafId = 0;
   var t0 = 0;
-  var lastFrame = 0;
 
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -98,14 +94,10 @@
   }
 
   function setupOctagram() {
-    // Centre positioned above+right of the viewport so a single point of
-    // the star reaches down into the top-right region. Radius tuned so
-    // one tip occupies roughly a quarter of the viewport's short edge.
     octagram.cx = dims.w * 1.02;
     octagram.cy = -dims.h * 0.08;
     octagram.r = Math.max(dims.w, dims.h) * 0.68;
 
-    // {8/3}: 8 vertices, connect vertex i to vertex (i+3) mod 8.
     var verts = new Array(8);
     for (var i = 0; i < 8; i++) {
       var theta = (i * Math.PI) / 4;
@@ -118,7 +110,14 @@
     for (var k = 0; k < 8; k++) {
       var a = verts[k];
       var b = verts[(k + 3) % 8];
-      octagram.segments[k] = { x1: a.x, y1: a.y, x2: b.x, y2: b.y, heat: 0 };
+      var len = Math.hypot(b.x - a.x, b.y - a.y);
+      var N = Math.max(8, Math.ceil(len / SUB_PX));
+      octagram.segments[k] = {
+        x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+        length: len,
+        N: N,
+        heats: new Float32Array(N),
+      };
     }
   }
 
@@ -136,55 +135,68 @@
     }
   }
 
-  // Returns distance from (px, py) to segment s and the closest point.
   function distToSeg(px, py, s) {
     var dx = s.x2 - s.x1;
     var dy = s.y2 - s.y1;
     var len2 = dx * dx + dy * dy;
     if (len2 < 0.0001) {
-      return { dist: Math.hypot(px - s.x1, py - s.y1), cx: s.x1, cy: s.y1 };
+      return { dist: Math.hypot(px - s.x1, py - s.y1), t: 0 };
     }
     var t = Math.max(0, Math.min(1, ((px - s.x1) * dx + (py - s.y1) * dy) / len2));
     var cx = s.x1 + t * dx;
     var cy = s.y1 + t * dy;
-    return { dist: Math.hypot(px - cx, py - cy), cx: cx, cy: cy };
+    return { dist: Math.hypot(px - cx, py - cy), t: t };
   }
 
-  function drawOctagram(layerAlpha) {
-    ctx.lineWidth = 1;
-    for (var i = 0; i < octagram.segments.length; i++) {
-      var s = octagram.segments[i];
-      var alpha = (0.06 + s.heat * 0.55) * layerAlpha;
-      if (alpha < 0.002) continue;
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = 'rgba(' + palette.line + ',1)';
-      ctx.beginPath();
-      ctx.moveTo(s.x1, s.y1);
-      ctx.lineTo(s.x2, s.y2);
-      ctx.stroke();
-      // Heat decay — slow enough to leave a visible streak for several
-      // seconds after a crossing.
-      s.heat *= HEAT_DECAY;
+  function bumpHeat(seg, t, intensity) {
+    var center = Math.floor(t * seg.N);
+    if (center < 0) center = 0;
+    if (center >= seg.N) center = seg.N - 1;
+    for (var k = center - HEAT_SPREAD; k <= center + HEAT_SPREAD; k++) {
+      if (k < 0 || k >= seg.N) continue;
+      var d = Math.abs(k - center);
+      // Triangular falloff: full at centre, 0 at (spread+1).
+      var falloff = 1 - d / (HEAT_SPREAD + 1);
+      var add = intensity * falloff;
+      if (add <= 0) continue;
+      var next = seg.heats[k] + add;
+      seg.heats[k] = next > 1 ? 1 : next;
     }
   }
 
-  function drawGlows(delta, layerAlpha) {
-    for (var i = glows.length - 1; i >= 0; i--) {
-      var g = glows[i];
-      g.life += delta;
-      var p = g.life / g.maxLife;
-      if (p >= 1) { glows.splice(i, 1); continue; }
-      var alpha = Math.sin(p * Math.PI) * g.maxAlpha * layerAlpha;
-      if (alpha < 0.003) continue;
-      var radius = 36 + g.life * 0.02;
-      var grad = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, radius);
-      grad.addColorStop(0, 'rgba(' + palette.hot + ',' + alpha + ')');
-      grad.addColorStop(1, 'rgba(' + palette.hot + ',0)');
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = grad;
+  function drawOctagram(layerAlpha) {
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(' + palette.line + ',1)';
+
+    for (var si = 0; si < octagram.segments.length; si++) {
+      var seg = octagram.segments[si];
+
+      // Very faint persistent base so the pattern is present but the
+      // reveal on crossing does the work visually.
+      ctx.globalAlpha = 0.025 * layerAlpha;
       ctx.beginPath();
-      ctx.arc(g.x, g.y, radius, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(seg.x1, seg.y1);
+      ctx.lineTo(seg.x2, seg.y2);
+      ctx.stroke();
+
+      // Overlay short sub-segments for heated regions only.
+      var invN = 1 / seg.N;
+      var dx = seg.x2 - seg.x1;
+      var dy = seg.y2 - seg.y1;
+      for (var i = 0; i < seg.N; i++) {
+        var h = seg.heats[i];
+        if (h > 0.004) {
+          var t0 = i * invN;
+          var t1 = (i + 1) * invN;
+          ctx.globalAlpha = h * 0.7 * layerAlpha;
+          ctx.beginPath();
+          ctx.moveTo(seg.x1 + dx * t0, seg.y1 + dy * t0);
+          ctx.lineTo(seg.x1 + dx * t1, seg.y1 + dy * t1);
+          ctx.stroke();
+        }
+        seg.heats[i] *= HEAT_DECAY;
+      }
     }
   }
 
@@ -192,8 +204,6 @@
     if (!running) return;
     var now = performance.now();
     var elapsed = now - t0;
-    var delta = lastFrame ? now - lastFrame : 16;
-    lastFrame = now;
 
     if (elapsed > totalMs) {
       ctx.clearRect(0, 0, dims.w, dims.h);
@@ -228,43 +238,25 @@
     ctx.fillStyle = 'rgba(' + palette.bg + ',' + trailAlpha + ')';
     ctx.fillRect(0, 0, dims.w, dims.h);
 
-    // Glows behind the octagram (soft bloom around where chars hit).
-    drawGlows(delta, layerAlpha);
-
-    // Octagram under the rain.
     drawOctagram(layerAlpha);
 
-    // Matrix drops + heat/glow injection on crossings.
     ctx.globalAlpha = dropAlpha;
     var active = Math.max(1, Math.floor(drops.length * densityScale));
     for (var di = 0; di < active; di++) {
       var d = drops[di];
-      var g = glyphs.charAt((Math.random() * glyphs.length) | 0);
+      var ch = glyphs.charAt((Math.random() * glyphs.length) | 0);
       ctx.fillStyle = d.hot
         ? 'rgba(' + palette.hot + ',0.95)'
         : 'rgba(' + palette.drop + ',0.65)';
-      ctx.fillText(g, d.x, d.y);
+      ctx.fillText(ch, d.x, d.y);
 
-      // Glyph centre in canvas space.
       var gx = d.x + cellSize / 2;
       var gy = d.y + cellSize / 2;
-
       for (var si = 0; si < octagram.segments.length; si++) {
         var seg = octagram.segments[si];
         var r = distToSeg(gx, gy, seg);
         if (r.dist < HIT_RADIUS) {
-          seg.heat = Math.min(1, seg.heat + 0.3);
-          // Spawn an occasional bloom at the contact point — throttled so
-          // we don't queue hundreds of overlapping radial gradients.
-          if (Math.random() < 0.3) {
-            glows.push({
-              x: r.cx + (Math.random() - 0.5) * 10,
-              y: r.cy + (Math.random() - 0.5) * 10,
-              life: 0,
-              maxLife: 1200 + Math.random() * 600,
-              maxAlpha: 0.18 + Math.random() * 0.08,
-            });
-          }
+          bumpHeat(seg, r.t, 0.7);
         }
       }
 
