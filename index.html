@@ -14,7 +14,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
+<script>
+// Apply stored theme override before first paint to avoid FOUC. "auto"
+// or unset falls through to prefers-color-scheme via CSS media query.
+(function () {
+  try {
+    var t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.setAttribute('data-theme', t);
+    }
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <canvas id="matrix-bg" aria-hidden="true"></canvas>
@@ -27,6 +39,21 @@
       <span>Remote · Sydney onsites welcome</span>
       <span class="sep">·</span>
       <a href="mailto:solomayoglu@gmail.com">solomayoglu&#64;gmail.com</a>
+      <button type="button" id="theme-toggle" class="theme-toggle"
+              aria-label="Toggle colour scheme" title="Cycle: auto → light → dark">
+        <svg class="icon icon-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 3a9 9 0 0 0 0 18"/>
+          <path d="M12 3v18"/>
+        </svg>
+        <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>
+        </svg>
+      </button>
     </div>
 
     <h1>
@@ -211,7 +238,55 @@
     </div>
   </footer>
 </div>
-<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Theme toggle: cycles auto → light → dark → auto. "auto" = follow
+  // prefers-color-scheme (handled by CSS media query). Override stored
+  // in localStorage; data-theme attribute removed in auto mode.
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    var root = document.documentElement;
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function current() {
+      try { return localStorage.getItem('theme') || 'auto'; } catch (e) { return 'auto'; }
+    }
+    function effective(mode) {
+      if (mode === 'light' || mode === 'dark') return mode;
+      return mq.matches ? 'dark' : 'light';
+    }
+    function render(mode) {
+      btn.dataset.mode = mode;
+      btn.setAttribute('aria-label',
+        'Colour scheme: ' + mode + ' (click to cycle auto → light → dark)');
+      // theme-color meta for mobile browser chrome
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', effective(mode) === 'dark' ? '#0b0d12' : '#faf7f2');
+    }
+    render(current());
+
+    btn.addEventListener('click', function () {
+      var mode = current();
+      var next = mode === 'auto' ? 'light' : mode === 'light' ? 'dark' : 'auto';
+      try {
+        if (next === 'auto') localStorage.removeItem('theme');
+        else localStorage.setItem('theme', next);
+      } catch (e) {}
+      if (next === 'auto') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', next);
+      render(next);
+    });
+
+    // When in auto mode, re-render icon if the OS preference flips.
+    if (mq.addEventListener) {
+      mq.addEventListener('change', function () {
+        if (current() === 'auto') render('auto');
+      });
+    }
+  })();
+</script>
 <script src="matrix.js?v=2" defer></script>
 </body>
 </html>

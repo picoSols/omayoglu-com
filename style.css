@@ -19,7 +19,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg:       #faf7f2;
     --surface:  #ffffff;
     --line:     #e5e1d8;
@@ -30,6 +30,30 @@
     --accent-2: #217a4a;
     color-scheme: light;
   }
+}
+
+/* Explicit user override — beats the media query above. */
+:root[data-theme="light"] {
+  --bg:       #faf7f2;
+  --surface:  #ffffff;
+  --line:     #e5e1d8;
+  --text:     #13151b;
+  --muted:    #585e6e;
+  --dim:      #93979f;
+  --accent:   #c55a13;
+  --accent-2: #217a4a;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg:       #0b0d12;
+  --surface:  #141821;
+  --line:     #1f2430;
+  --text:     #e6e8ef;
+  --muted:    #8b92a3;
+  --dim:      #5a6173;
+  --accent:   #f29848;
+  --accent-2: #55c28a;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -101,6 +125,29 @@ html, body {
 .meta-strip .sep { color: var(--line); }
 .meta-strip a { color: inherit; }
 .meta-strip a:hover { color: var(--accent); }
+
+/* Theme toggle — three icons stacked, one shown per data-mode. */
+.theme-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, transform 0.15s;
+}
+.theme-toggle:hover  { color: var(--accent); border-color: var(--accent); }
+.theme-toggle:active { transform: scale(0.94); }
+.theme-toggle .icon { width: 0.95rem; height: 0.95rem; display: none; }
+.theme-toggle[data-mode="auto"]  .icon-auto  { display: block; }
+.theme-toggle[data-mode="light"] .icon-sun   { display: block; }
+.theme-toggle[data-mode="dark"]  .icon-moon  { display: block; }
 
 .live-dot { display: inline-flex; align-items: center; gap: 0.5rem; }
 .live-dot .dot {
@@ -214,8 +261,10 @@ main > .block + .block { border-top: 1px solid var(--line); }
     -webkit-backdrop-filter: blur(10px) saturate(140%);
   }
   @media (prefers-color-scheme: light) {
-    .card { background: rgba(255, 255, 255, 0.78); }
+    :root:not([data-theme="dark"]) .card { background: rgba(255, 255, 255, 0.78); }
   }
+  :root[data-theme="light"] .card { background: rgba(255, 255, 255, 0.78); }
+  :root[data-theme="dark"]  .card { background: rgba(20, 24, 31, 0.72); }
 }
 .card:hover { border-color: rgba(242,152,72,0.45); }
 @media (min-width: 720px) { .card { padding: 1.75rem; } }
