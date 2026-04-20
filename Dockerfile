@@ -5,5 +5,5 @@
 # daemon. COPY streams files to the daemon at build time, sidestepping
 # that mount-scope problem.
 FROM nginx:alpine
-COPY index.html style.css favicon.svg /usr/share/nginx/html/
+COPY index.html style.css matrix.js favicon.svg /usr/share/nginx/html/
 EXPOSE 80

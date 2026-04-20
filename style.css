@@ -48,8 +48,22 @@ html, body {
 
 ::selection { background: var(--accent); color: var(--bg); }
 
-/* Subtle grid background — disappears on mobile for calmer mobile feel */
+/* Matrix-rain backdrop canvas. Fixed full-viewport, behind all content,
+   pointer-events: none so it never intercepts input. */
+#matrix-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Subtle grid background — sits on top of the matrix canvas so the grid
+   lines thread through the rain. disappears on mobile for calmer feel. */
 .grid-bg {
+  position: relative;
+  z-index: 1;
   min-height: 100%;
   background-image:
     linear-gradient(to right, rgba(127,127,127,0.06) 1px, transparent 1px),
