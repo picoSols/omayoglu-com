@@ -50,26 +50,26 @@
     '0123456789ABCDEF' +
     '⊕⊗⊙◉◎⬡⬢△▽◇◈✦✧✺⎔';
 
-  var cellSize = 26;
-  var spacing = 30;
+  var cellSize = 29;
+  var spacing = 33;
   var introMs = 2000;
   var decayMs = 1000;
   var ambientMs = 25000;
   var fadeMs = 4000;
   var totalMs = introMs + decayMs + ambientMs + fadeMs;
 
-  // Sub-granularity ~5px; decay half-life ~2s; localised highlight.
+  // Heat accumulates per sub ~5px along a segment. Decay half-life ~2s.
+  // Tight spread + small hit radius + low bump intensity so the painted
+  // highlight stays roughly 1.5× the glyph size, not much larger.
   var SUB_PX = 5;
   var HEAT_DECAY = 0.99;
-  var HIT_RADIUS = 20;
-  var HEAT_SPREAD = 2;
+  var HIT_RADIUS = 15;
+  var HEAT_SPREAD = 1;
+  var HEAT_INTENSITY = 0.35;
 
-  // Circle discretisation — one heat slot per ~2° of arc gives smooth
-  // highlighting as characters graze the ring.
+  // Circle discretisation — one heat slot per 2° of arc.
   var CIRCLE_SLOTS = 180;
-  // Spread in slot-count for a circle crossing, tuned so the lit arc
-  // matches the size of the lit straight-line stretch.
-  var CIRCLE_SPREAD = 2;
+  var CIRCLE_SPREAD = 1;
 
   var drops = [];
   var geometry = {
@@ -151,13 +151,13 @@
 
   function seedDrops() {
     var cols = Math.max(1, Math.floor(dims.w / spacing));
-    var count = Math.max(12, Math.floor(cols * 0.7));
+    var count = Math.max(12, Math.floor(cols * 0.77));
     drops = new Array(count);
     for (var i = 0; i < count; i++) {
       drops[i] = {
         x: Math.random() * dims.w,
         y: Math.random() * dims.h - dims.h,
-        speed: 1.2 + Math.random() * 2.5,
+        speed: 1.08 + Math.random() * 2.25,
         hot: Math.random() < 0.15,
       };
     }
@@ -307,7 +307,7 @@
       for (var si = 0; si < geometry.segments.length; si++) {
         var seg = geometry.segments[si];
         var r = distToSeg(gx, gy, seg);
-        if (r.dist < HIT_RADIUS) bumpSegmentHeat(seg, r.t, 0.7);
+        if (r.dist < HIT_RADIUS) bumpSegmentHeat(seg, r.t, HEAT_INTENSITY);
       }
 
       // Circle crossings: distance to ring = |dist-from-centre − radius|.
@@ -318,14 +318,14 @@
       if (Math.abs(radial - c.r) < HIT_RADIUS) {
         var angle = Math.atan2(dyc, dxc);       // (-π, π]
         var angle01 = (angle + Math.PI) / (Math.PI * 2);
-        bumpCircleHeat(c, angle01, 0.7);
+        bumpCircleHeat(c, angle01, HEAT_INTENSITY);
       }
 
       d.y += d.speed;
       if (d.y > dims.h + cellSize) {
         d.y = -cellSize - Math.random() * 80;
         d.x = Math.random() * dims.w;
-        d.speed = 1.2 + Math.random() * 2.5;
+        d.speed = 1.08 + Math.random() * 2.25;
         d.hot = Math.random() < 0.15;
       }
     }
