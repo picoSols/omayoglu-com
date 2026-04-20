@@ -16,11 +16,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=3">
 <script>
-// Apply stored theme override before first paint to avoid FOUC. "auto"
-// or unset falls through to prefers-color-scheme via CSS media query.
+// Apply stored theme override before first paint to avoid FOUC.
+// Cookie (.omayoglu.com) is the source of truth so the preference
+// carries across subdomains; localStorage is a same-origin fallback.
+// "auto" or unset falls through to prefers-color-scheme via CSS.
 (function () {
   try {
-    var t = localStorage.getItem('theme');
+    var m = document.cookie.match(/(?:^|;\s*)theme=(light|dark)(?:;|$)/);
+    var t = m ? m[1] : localStorage.getItem('theme');
     if (t === 'light' || t === 'dark') {
       document.documentElement.setAttribute('data-theme', t);
     }
@@ -250,9 +253,28 @@
     var root = document.documentElement;
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
 
-    function current() {
-      try { return localStorage.getItem('theme') || 'auto'; } catch (e) { return 'auto'; }
+    // Cookie is the cross-subdomain source of truth; localStorage is a
+    // same-origin fallback (e.g. localhost dev, or if cookies are blocked).
+    function readStored() {
+      try {
+        var m = document.cookie.match(/(?:^|;\s*)theme=(light|dark)(?:;|$)/);
+        if (m) return m[1];
+        return localStorage.getItem('theme') || 'auto';
+      } catch (e) { return 'auto'; }
     }
+    function writeStored(mode) {
+      try {
+        if (mode === 'auto') {
+          localStorage.removeItem('theme');
+          document.cookie = 'theme=; domain=.omayoglu.com; path=/; max-age=0; SameSite=Lax';
+          document.cookie = 'theme=; path=/; max-age=0; SameSite=Lax';
+        } else {
+          localStorage.setItem('theme', mode);
+          document.cookie = 'theme=' + mode + '; domain=.omayoglu.com; path=/; max-age=31536000; SameSite=Lax';
+        }
+      } catch (e) {}
+    }
+    function current() { return readStored(); }
     function effective(mode) {
       if (mode === 'light' || mode === 'dark') return mode;
       return mq.matches ? 'dark' : 'light';
@@ -270,10 +292,7 @@
     btn.addEventListener('click', function () {
       var mode = current();
       var next = mode === 'auto' ? 'light' : mode === 'light' ? 'dark' : 'auto';
-      try {
-        if (next === 'auto') localStorage.removeItem('theme');
-        else localStorage.setItem('theme', next);
-      } catch (e) {}
+      writeStored(next);
       if (next === 'auto') root.removeAttribute('data-theme');
       else root.setAttribute('data-theme', next);
       render(next);
