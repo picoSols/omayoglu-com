@@ -1,14 +1,8 @@
 services:
   web:
-    build: .
-    image: omayoglu-com:latest
-    container_name: omayoglu-com-web
+    image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8090:80"
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+      - "8090:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
