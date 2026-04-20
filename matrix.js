@@ -42,6 +42,29 @@
   var fadeMs = 4000;
   var totalMs = introMs + decayMs + ambientMs + fadeMs;
 
+  // Palettes keyed by effective theme. Trail fades toward the page bg;
+  // drop and hot colours are the brand accent in each theme (darker on
+  // light so the rain reads against a near-white surface).
+  var PALETTES = {
+    dark:  { bg: '11,13,18',    drop: '242,152,72', hot: '255,200,140', line: '242,152,72' },
+    light: { bg: '250,247,242', drop: '197,90,19',  hot: '232,140,60',  line: '197,90,19'  }
+  };
+  var palette = PALETTES.dark;
+
+  function resolveTheme() {
+    var explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'light' || explicit === 'dark') return explicit;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function updatePalette() { palette = PALETTES[resolveTheme()]; }
+  updatePalette();
+  try {
+    var mo = new MutationObserver(updatePalette);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+  var mqTheme = window.matchMedia('(prefers-color-scheme: dark)');
+  if (mqTheme.addEventListener) mqTheme.addEventListener('change', updatePalette);
+
   var drops = [];
   var leylines = [];
   var lastLeylineAt = -Infinity;
@@ -146,7 +169,7 @@
     // page colour. Near-black works well on both themes at low alpha.
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(11,13,18,' + trailAlpha + ')';
+    ctx.fillStyle = 'rgba(' + palette.bg + ',' + trailAlpha + ')';
     ctx.fillRect(0, 0, dims.w, dims.h);
 
     // Leylines — spawn only during intro/decay/ambient.
@@ -169,7 +192,7 @@
       // sine lobe: rises, peaks mid-life, falls.
       var llAlpha = Math.sin(lp * Math.PI) * 0.14 * layerAlpha;
       ctx.globalAlpha = llAlpha;
-      ctx.strokeStyle = 'rgba(242,152,72,1)';
+      ctx.strokeStyle = 'rgba(' + palette.line + ',1)';
       ctx.lineWidth = 0.6;
       ctx.beginPath();
       ctx.moveTo(ll.x1, ll.y1);
@@ -183,7 +206,9 @@
     for (var di = 0; di < active; di++) {
       var d = drops[di];
       var g = glyphs.charAt((Math.random() * glyphs.length) | 0);
-      ctx.fillStyle = d.hot ? 'rgba(255,200,140,0.95)' : 'rgba(242,152,72,0.65)';
+      ctx.fillStyle = d.hot
+        ? 'rgba(' + palette.hot + ',0.95)'
+        : 'rgba(' + palette.drop + ',0.65)';
       ctx.fillText(g, d.x, d.y);
       d.y += d.speed;
       if (d.y > dims.h + cellSize) {
