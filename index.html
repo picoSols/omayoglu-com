@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sol Omayoglu — AI-native software developer</title>
+<meta name="description" content="Sol Omayoglu — AI-native software developer. Production systems that combine probabilistic AI with deterministic guardrails. Go, Python, Java, TypeScript.">
+<meta property="og:title" content="Sol Omayoglu — AI-native software developer">
+<meta property="og:description" content="Production systems that combine probabilistic AI with deterministic guardrails.">
+<meta property="og:url" content="https://omayoglu.com">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0b0d12">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="grid-bg">
+
+  <header class="site-header">
+    <div class="meta-strip">
+      <span class="live-dot"><span class="dot"></span>Hamilton, VIC · AU</span>
+      <span class="sep">·</span>
+      <span>Remote · Sydney onsites welcome</span>
+      <span class="sep">·</span>
+      <a href="mailto:solomayoglu@gmail.com">solomayoglu&#64;gmail.com</a>
+    </div>
+
+    <h1>
+      AI-native software developer.
+      <span class="muted">I think with LLMs, not just use them.</span>
+    </h1>
+
+    <p class="lead">
+      I ship production systems that combine probabilistic AI with deterministic
+      guardrails — typed outputs, policy engines, prompt-injection shielding, eval
+      loops. Ten years in product and design before becoming a full-time developer.
+      Polyglot: Go, Python, Java, TypeScript, Rust.
+    </p>
+
+    <nav class="cta-row" aria-label="Primary">
+      <a class="btn primary" href="https://prompt-shield.omayoglu.com" target="_blank" rel="noopener">
+        Live demo <span class="arr" aria-hidden="true">→</span>
+      </a>
+      <a class="btn" href="https://github.com/picoSols" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .3a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.6-4-1.6-.6-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .3"/></svg>
+        github.com/picoSols
+      </a>
+      <a class="btn" href="mailto:solomayoglu@gmail.com">
+        Email
+      </a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="block">
+      <h2 class="eyebrow">Live work</h2>
+
+      <article class="card">
+        <header class="card-head">
+          <div class="card-title">
+            <span class="badge live"><span class="dot"></span>live</span>
+            <h3>prompt-shield-java</h3>
+          </div>
+          <a class="card-link" href="https://prompt-shield.omayoglu.com" target="_blank" rel="noopener">prompt-shield.omayoglu.com →</a>
+        </header>
+        <p>
+          Self-hostable prompt-injection defence microservice. Java Spring Boot + MySQL +
+          Angular. 8-rule deterministic engine, optional Claude judge, SHA-256 hashed
+          audit log via Flyway, rate-limited scan endpoint behind nginx, 20/20 tests
+          green. Ported from my Python <code>prompt_shield</code> module in four days
+          after reading a job ad — an end-to-end working proof, not a slide.
+        </p>
+        <ul class="tag-row">
+          <li>Spring Boot 3.3</li>
+          <li>Java 21</li>
+          <li>MySQL 8</li>
+          <li>Angular 18</li>
+          <li>nginx</li>
+          <li>Docker</li>
+          <li>MIT · open source</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div class="card-title">
+            <span class="badge">production</span>
+            <h3>picoRMM</h3>
+          </div>
+        </header>
+        <p>
+          Multi-tenant AI-powered Remote Monitoring &amp; Management platform for MSPs.
+          Go gRPC agent on customer endpoints (Win/macOS/Linux/ARM) streams telemetry
+          via NATS JetStream into a Python FastAPI control plane on TimescaleDB. An
+          Anthropic Claude analysis engine returns typed <code>RootCauseAnalysis</code>
+          objects; a per-customer policy engine constrains which model-proposed actions
+          can execute and logs every decision for audit.
+        </p>
+        <ul class="tag-row">
+          <li>Go · gRPC</li>
+          <li>FastAPI · SQLAlchemy async</li>
+          <li>NATS JetStream</li>
+          <li>TimescaleDB</li>
+          <li>Anthropic Claude</li>
+          <li>Cloudflare Tunnel</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div class="card-title">
+            <span class="badge">tooling</span>
+            <h3>MCP + Claude Code ecosystem</h3>
+          </div>
+          <a class="card-link" href="https://github.com/picoSols" target="_blank" rel="noopener">github.com/picoSols →</a>
+        </header>
+        <p>
+          Public fork of <code>comfyui-mcp</code> adding Comfy Cloud API support
+          (<code>picoSols/comfyui-cloud-mcp</code>). <code>claude-usage-statusline</code>
+          utility for Claude Code. <code>owl-grab</code> — Odoo context for coding
+          agents. Plus 40+ Claude Code slash commands that drive long-running plan →
+          build → verify workflows across my repos. Eval harnesses + release CI across
+          the stack so model or dependency upgrades never silently regress.
+        </p>
+        <ul class="tag-row">
+          <li>TypeScript · MCP SDK</li>
+          <li>Node 20+</li>
+          <li>Zod</li>
+          <li>Claude Code plugins</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="block">
+      <h2 class="eyebrow">Prior production</h2>
+
+      <article class="card compact">
+        <h3>Hatchyverse API</h3>
+        <p>
+          Node/TypeScript + Express + TSOA on AWS (DynamoDB · S3 · Cognito · Lambda ·
+          Firebase Auth). 100K+ users. Auto-generated OpenAPI + C# client SDKs,
+          PDF/image pipelines, PM2. Led the build end-to-end; hired and ran the team.
+        </p>
+      </article>
+
+      <article class="card compact">
+        <h3>Grangeburn Technology</h3>
+        <p>
+          Walked into an unfamiliar Python/Odoo stack and replaced a legacy Laravel
+          website and Jim2 CRM with a unified Odoo 18 CE deployment on Docker +
+          PostgreSQL. Covers e-commerce, job management, printer leasing, and BYOD
+          school portals.
+        </p>
+      </article>
+    </section>
+
+    <section class="block about">
+      <h2 class="eyebrow">About</h2>
+      <p>
+        I&rsquo;m based in rural Victoria, Australia and work remotely across the country.
+        My current focus is the boundary between probabilistic AI and deterministic
+        software — the part where model output has to become something a business can
+        safely act on. I care about reliability under load, auditability after the fact,
+        and the instinct to know what <em>not</em> to build.
+      </p>
+      <p>
+        Twenty years of running product, operations, and design teams before I became a
+        full-time software developer. That prior chapter is the reason I ship small,
+        measured, and tested — and the reason I can walk into an unfamiliar codebase
+        (Odoo, Laravel, Spring, Unity, Tauri, gRPC) and improve the workflow on it.
+      </p>
+    </section>
+
+    <section class="block contact">
+      <h2 class="eyebrow">Get in touch</h2>
+      <ul class="contact-list">
+        <li>
+          <span class="contact-label">email</span>
+          <a href="mailto:solomayoglu@gmail.com">solomayoglu&#64;gmail.com</a>
+        </li>
+        <li>
+          <span class="contact-label">github</span>
+          <a href="https://github.com/picoSols" target="_blank" rel="noopener">github.com/picoSols</a>
+        </li>
+        <li>
+          <span class="contact-label">live demo</span>
+          <a href="https://prompt-shield.omayoglu.com" target="_blank" rel="noopener">prompt-shield.omayoglu.com</a>
+        </li>
+        <li>
+          <span class="contact-label">location</span>
+          <span>Hamilton, VIC · AU · remote-capable · Sydney-friendly</span>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      &copy; <span id="year">2026</span> Sol Omayoglu.
+      <span class="sep">·</span>
+      Built by hand, no framework —
+      <a href="https://github.com/picoSols" target="_blank" rel="noopener">source</a>.
+    </div>
+    <div class="mono muted">
+      <a href="mailto:solomayoglu@gmail.com">solomayoglu&#64;gmail.com</a>
+    </div>
+  </footer>
+</div>
+<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>
