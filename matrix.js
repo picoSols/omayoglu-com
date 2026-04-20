@@ -67,8 +67,9 @@
   var HEAT_SPREAD = 1;
   var HEAT_INTENSITY = 0.35;
 
-  // Circle discretisation — one heat slot per 2° of arc.
-  var CIRCLE_SLOTS = 180;
+  // Circle slot count is computed at setupGeometry so each slot covers
+  // roughly SUB_PX of arc length. That keeps the painted arc section
+  // about the same size as a lit line sub-segment.
   var CIRCLE_SPREAD = 1;
 
   var drops = [];
@@ -139,13 +140,16 @@
       };
     }
 
-    // Enclosing circle — heat stored in angle-indexed slots.
+    // Enclosing circle — heat stored in angle-indexed slots. Slot count
+    // scales with circumference so each slot is ~SUB_PX of arc, giving
+    // the same fragmentation as the straight segments.
+    var circleN = Math.max(180, Math.ceil((2 * Math.PI * geometry.circleR) / SUB_PX));
     geometry.circle = {
       cx: geometry.cx,
       cy: geometry.cy,
       r: geometry.circleR,
-      N: CIRCLE_SLOTS,
-      heats: new Float32Array(CIRCLE_SLOTS),
+      N: circleN,
+      heats: new Float32Array(circleN),
     };
   }
 
