@@ -72,6 +72,11 @@
   // about the same size as a lit line sub-segment.
   var CIRCLE_SPREAD = 1;
 
+  // Octagram rotation: one full revolution per ROTATION_PERIOD_MS.
+  // 3 min / revolution is slow enough to feel meditative but visible
+  // within the ~32s effect lifecycle.
+  var ROTATION_PERIOD_MS = 180000;
+
   var drops = [];
   var geometry = {
     cx: 0, cy: 0, r: 0, circleR: 0,
@@ -129,6 +134,7 @@
       [1, 3], [3, 5], [5, 7], [7, 1],
       [0, 3], [3, 6], [6, 1], [1, 4], [4, 7], [7, 2], [2, 5], [5, 0],
     ];
+    geometry.pairs = pairs;
     geometry.segments = new Array(pairs.length);
     for (var k = 0; k < pairs.length; k++) {
       var a = verts[pairs[k][0]];
@@ -212,9 +218,33 @@
     }
   }
 
+  // Recompute the 8 vertices + 16 segment endpoints under the current
+  // rotation angle. Heat arrays stay attached to segments unchanged —
+  // each heat slot is parameterised by t along the segment, so as the
+  // segment moves, the painted highlight moves with it.
+  function rotateGeometry(elapsed) {
+    if (!geometry.pairs) return;
+    var angle = (elapsed / ROTATION_PERIOD_MS) * Math.PI * 2;
+    var verts = new Array(8);
+    for (var i = 0; i < 8; i++) {
+      var theta = (i * Math.PI) / 4 + angle;
+      verts[i] = {
+        x: geometry.cx + Math.cos(theta) * geometry.r,
+        y: geometry.cy + Math.sin(theta) * geometry.r,
+      };
+    }
+    for (var k = 0; k < geometry.pairs.length; k++) {
+      var a = verts[geometry.pairs[k][0]];
+      var b = verts[geometry.pairs[k][1]];
+      var seg = geometry.segments[k];
+      seg.x1 = a.x; seg.y1 = a.y;
+      seg.x2 = b.x; seg.y2 = b.y;
+    }
+  }
+
   function drawGeometry(layerAlpha) {
     ctx.lineCap = 'round';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgba(' + palette.line + ',1)';
 
     // Straight segments — only draw lit sub-segments. No persistent line.
@@ -294,6 +324,7 @@
     ctx.fillStyle = 'rgba(' + palette.bg + ',' + trailAlpha + ')';
     ctx.fillRect(0, 0, dims.w, dims.h);
 
+    rotateGeometry(elapsed);
     drawGeometry(layerAlpha);
 
     ctx.globalAlpha = dropAlpha;
