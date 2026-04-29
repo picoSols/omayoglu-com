@@ -20,9 +20,18 @@ Every `git push origin master` followed by a Rebuild from the dashboard ships th
 ## Files
 
 - `index.html` · `style.css` · `favicon.svg` — the site
+- `.well-known/mta-sts.txt` — SMTP MTA-STS policy served from `mta-sts.omayoglu.com`
 - `Dockerfile` — nginx:alpine serving the static files
 - `nginx.conf` — security headers, caching, gzip, healthz
 - `docker-compose.yml` — single service exposed on 127.0.0.1:8090
+
+## Mail Security
+
+`mta-sts.omayoglu.com/.well-known/mta-sts.txt` is prepared for MTA-STS in
+`testing` mode against the current registrar forwarding MX hosts. DNS still
+needs `_mta-sts` and `_smtp._tls` TXT records, plus a Cloudflare route for the
+`mta-sts` hostname, before receiving MTAs will consume it. Move from
+`mode: testing` to `mode: enforce` only after TLS reports are clean.
 
 ## License
 

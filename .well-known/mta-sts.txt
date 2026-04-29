@@ -1,0 +1,8 @@
+version: STSv1
+mode: testing
+mx: eforward1.registrar-servers.com
+mx: eforward2.registrar-servers.com
+mx: eforward3.registrar-servers.com
+mx: eforward4.registrar-servers.com
+mx: eforward5.registrar-servers.com
+max_age: 86400
