@@ -3,5 +3,9 @@ services:
     build: .
     image: omayoglu-com:latest
     restart: unless-stopped
+    # Bind to loopback only — the container is fronted by Cloudflare Tunnel
+    # via picoRMM; the host port is for local debug / direct curl only.
+    # Without this prefix, a host with a public or LAN interface exposes
+    # the origin directly, bypassing the tunnel.
     ports:
-      - "8090:80"
+      - "127.0.0.1:8090:80"
